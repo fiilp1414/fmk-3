@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fuck • Marry • Kill</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .neon-border {
+      box-shadow: 0 0 20px rgba(180, 0, 255, 0.4), 0 0 40px rgba(180, 0, 255, 0.2);
+      border: 1px solid rgba(180, 0, 255, 0.4);
+    }
+    .neon-button {
+      box-shadow: 0 0 12px rgba(180, 0, 255, 0.6);
+      transition: box-shadow 0.25s ease;
+    }
+    .neon-button:hover {
+      box-shadow: 0 0 20px rgba(180, 0, 255, 0.9);
+    }
+    body {
+      background: radial-gradient(circle at center, #1a0028 0%, #000000 80%);
+    }
+
+    /* LIGHT PARTICLES */
+    .particle {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      z-index: 60;
+      pointer-events: none;
+      animation: particleFall linear forwards;
+      box-shadow: 0 0 10px currentColor;
+    }
+    @keyframes particleFall {
+      0% { transform: translateY(-100px) scale(0.6); opacity: 0.9; }
+      100% { transform: translateY(110vh) translateX(var(--drift)) scale(0.7); opacity: 0; }
+    }
+
+    /* TIGHTER CARDS */
+    .card-wrapper {
+      aspect-ratio: 9 / 13; /* Shorter cards */
+    }
+    .card-media {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-gray-100 flex flex-col">
+  <div class="max-w-6xl mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
+    <header class="text-center">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-wide">
+        <span class="text-pink-500">Fuck</span> <span class="text-gray-300">•</span>
+        <span class="text-yellow-400">Marry</span> <span class="text-gray-300">•</span>
+        <span class="text-red-500">Kill</span>
+      </h1>
+      <p class="mt-2 text-sm text-gray-400">Choose wisely… or don’t.</p>
+      <p class="mt-1 text-xs text-gray-500">Press <span class="text-pink-400 font-semibold">N</span> for Next Round</p>
+    </header>
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="text-sm text-gray-400">
+        Round: <span id="roundNumber" class="text-pink-400 font-semibold">1</span>
+      </div>
+      <div class="flex gap-3">
+        <button id="skipButton" class="px-5 py-2 rounded-full bg-gray-800 hover:bg-gray-700 text-sm font-medium text-gray-200">Skip Round</button>
+        <button id="nextButton" class="px-5 py-2 rounded-full bg-pink-600 hover:bg-pink-500 text-sm font-semibold text-white hidden">Next Round</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+      <main id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:col-span-2"></main>
+      <aside class="space-y-4">
+        <section class="glass rounded-2xl p-4">
+          <h2 class="text-sm font-semibold text-gray-200 mb-2">Scoreboard</h2>
+          <div id="scoreboardTotals" class="text-sm space-y-1"></div>
+          <hr class="my-3 border-gray-700">
+          <div id="scoreboardPerMedia" class="text-xs max-h-60 overflow-y-auto space-y-2"></div>
+        </section>
+        <section class="glass rounded-2xl p-4">
+          <h2 class="text-sm font-semibold text-gray-200 mb-2">History</h2>
+          <div id="historyContainer" class="max-h-80 overflow-y-auto space-y-3 text-xs"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="py-4 text-center text-xs text-gray-500 border-t border-gray-800">
+    Made for fun • No hard feelings, only hard choices.
+  </footer>
+
+  <!-- Pool Selector -->
+  <div id="poolSelectPanel" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+    <div class="max-w-md w-full glass rounded-2xl p-6 neon-border">
+      <h2 class="text-2xl font-bold text-center mb-4">Choose Set</h2>
+      <div class="space-y-3">
+        <button id="chooseGirlsSet" class="w-full py-4 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-full text-white neon-button">Women</button>
+        <button id="chooseAlternateSet" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-full text-white neon-button">Men</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode Selector -->
+  <div id="startPanel" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
+    <div class="max-w-md w-full glass rounded-2xl p-6">
+      <h2 class="text-2xl font-bold text-center mb-4">Game Mode</h2>
+      <div class="space-y-3">
+        <button id="startBracket" class="w-full py-4 bg-pink-600 hover:bg-pink-500 rounded-full text-white">Bracket Mode (No Repeats)</button>
+        <button id="startInfinite" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-full text-white">Infinite Mode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Game+ -->
+  <div id="ngPanel" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
+    <div class="max-w-md w-full glass rounded-2xl p-6">
+      <div id="ngStepPool">
+        <h2 class="text-2xl font-bold text-center mb-2">New Game+</h2>
+        <p class="text-center text-gray-400 mb-4">Choose a pool to continue</p>
+        <div id="ngPoolInfo" class="text-center text-sm mb-4"></div>
+        <div class="space-y-2">
+          <button id="ngPoolFuck" class="w-full py-3 bg-pink-600 hover:bg-pink-500 rounded-full text-white">Fuck Pool</button>
+          <button id="ngPoolMarry" class="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full">Marry Pool</button>
+          <button id="ngPoolKill" class="w-full py-3 bg-red-600 hover:bg-red-500 rounded-full text-white">Kill Pool</button>
+        </div>
+      </div>
+      <div id="ngStepMode" class="hidden">
+        <h2 class="text-2xl font-bold text-center mb-2">Mode</h2>
+        <p id="ngModeTitle" class="text-center mb-4"></p>
+        <div class="space-y-2">
+          <button id="ngModeNoRepeats" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-full text-white">No Repeats</button>
+          <button id="ngModeInfinite" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full text-white">Infinite Mode</button>
+        </div>
+        <button id="ngBackToPools" class="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-full">← Back</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ====================== MEDIA ======================
+const girlsSet = [
+  "https://files.catbox.moe/2a7r1d.mp4","https://files.catbox.moe/9g5yeb.mp4","https://files.catbox.moe/y0ubb0.mp4",
+  "https://files.catbox.moe/s31b4n.mp4","https://files.catbox.moe/hbg6q8.mp4","https://files.catbox.moe/vc8445.mp4",
+  "https://files.catbox.moe/7ppu6l.mp4","https://files.catbox.moe/lcqw6m.mp4","https://files.catbox.moe/cewlts.mp4",
+  "https://files.catbox.moe/djp3mh.mp4","https://files.catbox.moe/lyahbs.mp4","https://files.catbox.moe/kqpe8q.mp4",
+  "https://files.catbox.moe/uzka20.mp4","https://files.catbox.moe/vrvx0e.mp4","https://files.catbox.moe/7z1lrr.mp4",
+  "https://files.catbox.moe/nqhmo4.mp4","https://files.catbox.moe/5k42y4.mp4","https://files.catbox.moe/6xj944.mp4",
+  "https://files.catbox.moe/kejyin.mp4","https://files.catbox.moe/geix0f.mp4","https://files.catbox.moe/o72ekf.mp4",
+  "https://files.catbox.moe/2vrwa3.mp4","https://files.catbox.moe/cxrz71.mp4","https://files.catbox.moe/nwksw0.mp4",
+  "https://files.catbox.moe/8pj9nx.mp4","https://files.catbox.moe/4ndjuq.mp4","https://files.catbox.moe/ulsgrj.mp4",
+  "https://files.catbox.moe/otqjzb.mp4","https://files.catbox.moe/vn385e.mp4","https://files.catbox.moe/0v0qpr.mp4",
+  "https://files.catbox.moe/9pk6hx.mp4","https://files.catbox.moe/jgo6g3.mp4","https://files.catbox.moe/syf7ap.mp4",
+  "https://files.catbox.moe/cxg58y.mp4","https://files.catbox.moe/h9e5pb.mp4","https://files.catbox.moe/m0828q.mp4",
+  "https://files.catbox.moe/gmtadp.mp4","https://files.catbox.moe/n2cf8o.mp4","https://files.catbox.moe/rc3clq.mp4",
+  "https://files.catbox.moe/n3ukow.mp4","https://files.catbox.moe/0hb486.mp4","https://files.catbox.moe/w5v3ro.mp4",
+  "https://files.catbox.moe/7rvdyt.mp4","https://files.catbox.moe/z0f7qc.mp4","https://files.catbox.moe/7bh2kf.mp4",
+  "https://files.catbox.moe/20vsuz.mp4","https://files.catbox.moe/wicmkv.mp4","https://files.catbox.moe/15nqdn.mp4",
+  "https://files.catbox.moe/d1z6o4.mp4","https://files.catbox.moe/g3u8gh.mp4","https://files.catbox.moe/qbjqg2.mp4",
+  "https://files.catbox.moe/vnkatf.mp4","https://files.catbox.moe/v777d8.mp4","https://files.catbox.moe/pj6udm.mp4",
+  "https://files.catbox.moe/gayrnz.mp4","https://files.catbox.moe/g9pbh9.mp4","https://files.catbox.moe/0riri9.mp4",
+
+  "https://files.catbox.moe/0ilfym.mp4","https://files.catbox.moe/h34pta.mp4","https://files.catbox.moe/7xou5z.mp4",
+  "https://files.catbox.moe/moj1h6.mp4","https://files.catbox.moe/7ncp2b.mp4","https://files.catbox.moe/0qg9kb.mp4",
+  "https://files.catbox.moe/khs5cl.mp4","https://files.catbox.moe/nysnuu.mp4","https://files.catbox.moe/chbeff.mp4",
+  "https://files.catbox.moe/hsbgmc.mp4",
+
+  "https://files.catbox.moe/cdyemz.mp4",
+  "https://files.catbox.moe/dem1qe.mp4",
+  "https://files.catbox.moe/dzoq7m.mp4",
+  "https://files.catbox.moe/0iu3kf.mp4",
+  "https://files.catbox.moe/pjpi2d.mp4",
+];
+
+const alternateSet = ["https://files.catbox.moe/i02uwt.mp4","https://files.catbox.moe/5bdw3x.mp4","https://files.catbox.moe/v3yd7v.mp4","https://files.catbox.moe/tuodo0.mp4","https://files.catbox.moe/i49ol8.mp4","https://files.catbox.moe/j7qbb8.mp4","https://files.catbox.moe/1ii4sd.mp4","https://files.catbox.moe/qfg57p.mp4","https://files.catbox.moe/7ywvrn.mp4","https://files.catbox.moe/e5nbtf.mp4","https://files.catbox.moe/rqlx0g.mp4","https://files.catbox.moe/wpjo4c.mp4","https://files.catbox.moe/xu6sad.mp4","https://files.catbox.moe/7ly25p.mp4","https://files.catbox.moe/81kp5t.mp4"];
+
+let allMedia = [];
+let mediaPool = [];
+let currentRound = 1;
+let currentCards = [];
+let cardStates = ["neutral", "neutral", "neutral"];
+const history = [];
+const totals = { fuck: 0, marry: 0, kill: 0 };
+const perMedia = {};
+let currentInfinite = false;
+let pendingPoolType = null;
+
+// DOM
+const cardsContainer = document.getElementById("cardsContainer");
+const roundNumberEl = document.getElementById("roundNumber");
+const nextButton = document.getElementById("nextButton");
+const skipButton = document.getElementById("skipButton");
+const scoreboardTotalsEl = document.getElementById("scoreboardTotals");
+const scoreboardPerMediaEl = document.getElementById("scoreboardPerMedia");
+const historyContainer = document.getElementById("historyContainer");
+const poolSelectPanel = document.getElementById("poolSelectPanel");
+const startPanel = document.getElementById("startPanel");
+const ngPanel = document.getElementById("ngPanel");
+const ngStepPool = document.getElementById("ngStepPool");
+const ngStepMode = document.getElementById("ngStepMode");
+const ngPoolInfo = document.getElementById("ngPoolInfo");
+const ngModeTitle = document.getElementById("ngModeTitle");
+
+// ====================== PARTICLES ======================
+function triggerConfetti() {
+  const colors = ['#ff00ff', '#f472b6', '#c026d3', '#db2777', '#e879f9', '#a855f7'];
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    p.style.left = Math.random() * 100 + "vw";
+    p.style.width = p.style.height = (5 + Math.random() * 9) + "px";
+    const duration = 2 + Math.random() * 2.3;
+    p.style.setProperty("--drift", (Math.random() - 0.5) * 240 + "px");
+    p.style.animationDuration = duration + "s";
+    p.style.animationDelay = Math.random() * 0.4 + "s";
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), duration * 1000 + 500);
+  }
+}
+
+// ====================== CARD ======================
+function isVideoUrl(url) { return url.endsWith(".mp4"); }
+
+function createCard(mediaObj, cardIndex) {
+  const card = document.createElement("div");
+  card.className = "relative group overflow-hidden rounded-3xl glass border-2 border-gray-600 cursor-pointer hover:-translate-y-1 transition-all fade-in";
+  card.dataset.cardIndex = cardIndex;
+  card.dataset.mediaIndex = mediaObj.index;
+
+  card.innerHTML = `
+    <div class="relative card-wrapper overflow-hidden bg-black rounded-[14px]">
+      ${isVideoUrl(mediaObj.url) 
+        ? `<video src="${mediaObj.url}" autoplay muted loop playsinline class="card-media"></video>`
+        : `<img src="${mediaObj.url}" class="card-media group-hover:scale-105 transition-transform">`}
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10"></div>
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-full text-sm font-bold shadow-lg" data-label></div>
+    </div>
+  `;
+
+  card.addEventListener("click", () => cycleCardState(cardIndex));
+  return card;
+}
+function getUsedChoices() {
+  const used = new Set();
+  cardStates.forEach(state => { if (state !== "neutral") used.add(state); });
+  return used;
+}
+
+function cycleCardState(cardIndex) {
+  const order = ["neutral", "fuck", "marry", "kill"];
+  let currentIndex = order.indexOf(cardStates[cardIndex]);
+  const used = getUsedChoices();
+
+  for (let i = 1; i <= 4; i++) {
+    const nextIndex = (currentIndex + i) % 4;
+    const nextChoice = order[nextIndex];
+    if (nextChoice === "neutral" || !used.has(nextChoice)) {
+      cardStates[cardIndex] = nextChoice;
+      break;
+    }
+  }
+  updateCardStates();
+  checkRoundCompletion();
+}
+
+function updateCardStates() {
+  for (let i = 0; i < 3; i++) {
+    const card = cardsContainer.querySelector(`[data-card-index="${i}"]`);
+    if (!card) continue;
+    const state = cardStates[i];
+
+    card.style.borderColor = state === "fuck" ? "#ec4899" : state === "marry" ? "#eab308" : state === "kill" ? "#ef4444" : "#4b5563";
+
+    const label = card.querySelector("[data-label]");
+    label.textContent = state === "neutral" ? "" : state.toUpperCase();
+    label.style.backgroundColor = state === "fuck" ? "#db2777" : state === "marry" ? "#ca8a04" : state === "kill" ? "#b91c1c" : "rgba(31,41,55,0.85)";
+    label.style.color = state === "marry" ? "#000" : "#fff";
+  }
+}
+
+function checkRoundCompletion() {
+  const counts = {fuck:0, marry:0, kill:0};
+  cardStates.forEach(s => { if (s !== "neutral") counts[s]++; });
+  const complete = counts.fuck === 1 && counts.marry === 1 && counts.kill === 1;
+  nextButton.classList.toggle("hidden", !complete);
+  if (complete) triggerConfetti();
+}
+
+// Rest of the code (same as before)
+function saveRoundResults() {
+  const cards = cardsContainer.querySelectorAll("[data-card-index]");
+  cards.forEach(card => {
+    const idx = parseInt(card.dataset.cardIndex);
+    const mediaIndex = parseInt(card.dataset.mediaIndex);
+    const choice = cardStates[idx];
+    if (choice === "neutral") return;
+    totals[choice]++;
+    if (!perMedia[mediaIndex]) perMedia[mediaIndex] = {fuck:0, marry:0, kill:0};
+    perMedia[mediaIndex][choice]++;
+    history.push({round: currentRound, picks: [{choice, mediaIndex}]});
+  });
+  renderScoreboard();
+  renderHistory();
+}
+
+function renderScoreboard() {
+  scoreboardTotalsEl.innerHTML = `
+    <div>FUCK: <span class="text-pink-400">${totals.fuck}</span></div>
+    <div>MARRY: <span class="text-yellow-400">${totals.marry}</span></div>
+    <div>KILL: <span class="text-red-500">${totals.kill}</span></div>
+  `;
+  scoreboardPerMediaEl.innerHTML = Object.entries(perMedia).map(([idx, stats]) => `
+    <div class="border-b border-gray-700 pb-1">
+      <div class="text-xs truncate">${allMedia[idx].split('/').pop()}</div>
+      <div class="flex gap-2 text-xs">
+        <span class="text-pink-400">F:${stats.fuck}</span>
+        <span class="text-yellow-400">M:${stats.marry}</span>
+        <span class="text-red-500">K:${stats.kill}</span>
+      </div>
+    </div>
+  `).join('') || '<div class="text-gray-500 text-xs">No stats yet</div>';
+}
+
+function renderHistory() {
+  historyContainer.innerHTML = history.map(h => `
+    <div class="border border-gray-700 rounded-xl p-3">
+      <div class="text-xs text-gray-400 mb-2">Round ${h.round}</div>
+      ${h.picks.map(p => `
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-12 h-12 rounded overflow-hidden flex-shrink-0">
+            <video src="${allMedia[p.mediaIndex]}" muted class="w-full h-full object-cover"></video>
+          </div>
+          <span class="px-4 py-1 text-xs font-bold rounded-full ${p.choice==='fuck'?'bg-pink-600':p.choice==='marry'?'bg-yellow-500 text-black':'bg-red-600'}">${p.choice.toUpperCase()}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('') || '<div class="text-gray-500 text-xs">No history yet</div>';
+}
+
+function getPoolIndicesFor(type) {
+  return Object.keys(perMedia).filter(k => perMedia[k][type] > 0).map(Number);
+}
+
+function updateNgPoolInfo() {
+  ngPoolInfo.innerHTML = `Fuck: ${getPoolIndicesFor("fuck").length} • Marry: ${getPoolIndicesFor("marry").length} • Kill: ${getPoolIndicesFor("kill").length}`;
+}
+
+function handleEndOfPool() {
+  nextButton.classList.add("hidden");
+  skipButton.classList.add("hidden");
+  updateNgPoolInfo();
+  ngPanel.classList.remove("hidden");
+  ngStepPool.classList.remove("hidden");
+  ngStepMode.classList.add("hidden");
+}
+
+function loadRound(increment = true) {
+  if (mediaPool.length < 3) { handleEndOfPool(); return; }
+  if (increment) currentRound++;
+  roundNumberEl.textContent = currentRound;
+  cardStates = ["neutral","neutral","neutral"];
+  nextButton.classList.add("hidden");
+
+  currentCards = [];
+  const used = new Set();
+  while (currentCards.length < 3 && currentCards.length < mediaPool.length) {
+    let r = Math.floor(Math.random() * mediaPool.length);
+    if (!used.has(r)) { used.add(r); currentCards.push(r); }
+  }
+
+  cardsContainer.innerHTML = "";
+  currentCards.forEach((pos, i) => {
+    const card = createCard(mediaPool[pos], i);
+    cardsContainer.appendChild(card);
+  });
+  updateCardStates();
+}
+
+function consumeCurrentCards() {
+  if (currentInfinite) return;
+  currentCards.sort((a,b) => b-a).forEach(i => mediaPool.splice(i, 1));
+}
+
+function startNewPool(poolType, infinite) {
+  let indices = poolType === "all" ? allMedia.map((_,i)=>i) : getPoolIndicesFor(poolType);
+  if (indices.length < 3) { alert("Not enough items in this pool"); return; }
+  mediaPool = indices.map(i => ({index: i, url: allMedia[i]}));
+  currentInfinite = infinite;
+  currentRound = 0;
+  ngPanel.classList.add("hidden");
+  loadRound(false);
+}
+
+function initGame() {
+  currentRound = 1;
+  loadRound(false);
+  renderScoreboard();
+  renderHistory();
+}
+
+// Event Listeners
+document.getElementById("chooseGirlsSet").addEventListener("click", () => {
+  allMedia = [...girlsSet];
+  mediaPool = allMedia.map((url,i) => ({index:i, url}));
+  poolSelectPanel.classList.add("hidden");
+  startPanel.classList.remove("hidden");
+});
+
+document.getElementById("chooseAlternateSet").addEventListener("click", () => {
+  allMedia = [...alternateSet];
+  mediaPool = allMedia.map((url,i) => ({index:i, url}));
+  poolSelectPanel.classList.add("hidden");
+  startPanel.classList.remove("hidden");
+});
+
+document.getElementById("startBracket").addEventListener("click", () => {
+  currentInfinite = false;
+  startPanel.classList.add("hidden");
+  initGame();
+});
+
+document.getElementById("startInfinite").addEventListener("click", () => {
+  currentInfinite = true;
+  startPanel.classList.add("hidden");
+  initGame();
+});
+
+nextButton.addEventListener("click", () => {
+  saveRoundResults();
+  consumeCurrentCards();
+  loadRound(true);
+});
+
+skipButton.addEventListener("click", () => {
+  consumeCurrentCards();
+  loadRound(false);
+});
+
+document.addEventListener("keydown", e => {
+  if ((e.key === "n" || e.key === "N") && !nextButton.classList.contains("hidden")) {
+    saveRoundResults();
+    consumeCurrentCards();
+    loadRound(true);
+  }
+});
+
+document.getElementById("ngPoolFuck").addEventListener("click", () => {
+  pendingPoolType = "fuck";
+  ngModeTitle.textContent = "Fuck Pool";
+  ngStepPool.classList.add("hidden");
+  ngStepMode.classList.remove("hidden");
+});
+document.getElementById("ngPoolMarry").addEventListener("click", () => {
+  pendingPoolType = "marry";
+  ngModeTitle.textContent = "Marry Pool";
+  ngStepPool.classList.add("hidden");
+  ngStepMode.classList.remove("hidden");
+});
+document.getElementById("ngPoolKill").addEventListener("click", () => {
+  pendingPoolType = "kill";
+  ngModeTitle.textContent = "Kill Pool";
+  ngStepPool.classList.add("hidden");
+  ngStepMode.classList.remove("hidden");
+});
+
+document.getElementById("ngModeNoRepeats").addEventListener("click", () => startNewPool(pendingPoolType, false));
+document.getElementById("ngModeInfinite").addEventListener("click", () => startNewPool(pendingPoolType, true));
+document.getElementById("ngBackToPools").addEventListener("click", () => {
+  ngStepPool.classList.remove("hidden");
+  ngStepMode.classList.add("hidden");
+});
+</script>
+</body>
+</html>
